@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>보물상자 퀴즈</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;600;700;800&display=swap');
+
+    :root {
+      --ink: #23352d;
+      --cream: #fff8df;
+      --gold: #f7bd35;
+      --gold-dark: #9a5b18;
+      --green: #1f6248;
+      --green-light: #dff0c4;
+      --red: #c74b38;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      overflow: hidden;
+      margin: 0;
+      color: var(--ink);
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #7baa4d;
+      background-image: linear-gradient(rgba(20, 54, 36, .18), rgba(20, 54, 36, .18)), url('images/background.png');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+
+    .app-shell {
+      width: min(1080px, calc(100% - 32px));
+      height: 100svh;
+      margin: 0 auto;
+      padding: 28px 0 40px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 17px 24px;
+      border: 3px solid rgba(104, 57, 18, .55);
+      border-radius: 20px;
+      background: rgba(255, 248, 223, .93);
+      box-shadow: 0 8px 0 rgba(45, 77, 34, .3), 0 15px 35px rgba(27, 49, 25, .2);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { font-size: 2.4rem; line-height: 1; }
+    h1 { margin: 0; color: var(--green); font-family: 'Jua', sans-serif; font-size: clamp(1.65rem, 4vw, 2.25rem); letter-spacing: .02em; }
+    .subtitle { margin: 3px 0 0; color: #61705c; font-size: .86rem; font-weight: 600; }
+
+    .score-board { display: flex; align-items: center; gap: 15px; text-align: right; }
+    .score-label { display: block; color: #728069; font-size: .75rem; font-weight: 800; }
+    .score { color: var(--gold-dark); font-family: 'Jua', sans-serif; font-size: 1.85rem; }
+    .progress { width: 100px; height: 10px; overflow: hidden; border-radius: 99px; background: #d2dfbc; }
+    .progress-bar { width: 0%; height: 100%; border-radius: inherit; background: var(--gold); transition: width .4s ease; }
+    .reset-button { margin-top: 5px; padding: 4px 8px; border: 1px solid #c7ad78; border-radius: 7px; color: #765c35; background: rgba(255, 252, 234, .7); font: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; }
+    .reset-button:hover { color: #fff9df; background: #8b632d; }
+
+    .board {
+      min-height: 0;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      margin-top: 25px;
+      padding: clamp(18px, 4vw, 35px);
+      border: 3px solid rgba(86, 53, 19, .52);
+      border-radius: 27px;
+      background: rgba(244, 230, 174, .7);
+      box-shadow: 0 9px 0 rgba(45, 77, 34, .3), 0 16px 36px rgba(27, 49, 25, .2);
+    }
+
+    .board-heading { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 14px; }
+    .board-heading h2 { margin: 0; color: #754b22; font-family: 'Jua', sans-serif; font-size: clamp(1.35rem, 3vw, 1.75rem); }
+    .board-heading p { margin: 0; color: #6e7659; font-size: .87rem; font-weight: 700; }
+
+    .treasure-grid { display: grid; flex: 1; min-height: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 2.2vw, 22px); }
+    .treasure {
+      position: relative;
+      min-width: 0;
+      padding: 5px;
+      border: 2px solid rgba(118, 70, 20, .3);
+      border-radius: 16px;
+      background: rgba(255, 249, 222, .34);
+      cursor: pointer;
+      transition: transform .2s ease, filter .2s ease, background .2s ease;
+    }
+    .treasure:hover:not(:disabled), .treasure:focus-visible:not(:disabled) { z-index: 1; transform: translateY(-6px) rotate(-1deg); filter: drop-shadow(0 7px 5px rgba(92, 53, 15, .28)); background: rgba(255, 252, 234, .62); }
+    .treasure:focus-visible { outline: 4px solid #327d60; outline-offset: 3px; }
+    .treasure:disabled { cursor: default; }
+    .treasure img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: .93; }
+    .treasure-number { position: absolute; top: 6px; left: 7px; display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; color: #fff9dc; background: #376b4c; font-size: .75rem; font-weight: 800; }
+    .treasure.opened { background: rgba(231, 247, 190, .48); }
+    .treasure.opened .treasure-number { background: var(--gold-dark); }
+
+    .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 18px; background: rgba(18, 42, 28, .72); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    .modal-backdrop.visible { opacity: 1; pointer-events: auto; }
+    .modal { width: min(550px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 29px; border: 4px solid #c58428; border-radius: 24px; background: var(--cream); box-shadow: 0 15px 0 rgba(75, 47, 22, .4); transform: translateY(15px) scale(.97); transition: transform .2s ease; }
+    .visible .modal { transform: translateY(0) scale(1); }
+    .modal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .modal-tag { color: #8e571c; font-size: .85rem; font-weight: 800; }
+    .close-button { width: 35px; height: 35px; border: 0; border-radius: 50%; color: #6b573e; background: #f0dfb6; font-size: 1.35rem; cursor: pointer; }
+    .close-button:hover { background: #e4c98f; }
+    .question { margin: 0 0 22px; color: #3d422b; font-family: 'Jua', sans-serif; font-size: clamp(1.3rem, 3vw, 1.65rem); line-height: 1.45; }
+    .answers { display: grid; gap: 10px; }
+    .answer { width: 100%; padding: 13px 16px; border: 2px solid #dbc693; border-radius: 12px; color: #514a38; background: #fffdf3; font: inherit; font-weight: 700; text-align: left; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+    .answer:hover { border-color: #ca8c2d; background: #fff1c8; transform: translateX(3px); }
+    .answer:focus-visible { outline: 3px solid #327d60; outline-offset: 2px; }
+    .feedback { min-height: 27px; margin: 16px 0 0; font-weight: 800; text-align: center; }
+    .feedback.correct { color: var(--green); }
+    .feedback.wrong { color: var(--red); }
+    .complete { display: none; margin-top: 24px; padding: 17px; border-radius: 15px; color: #5f4318; background: #ffe39a; font-weight: 800; text-align: center; }
+    .complete.visible { display: block; animation: pop .45s ease both; }
+
+    @keyframes pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+    @media (max-width: 560px) {
+      .app-shell { width: calc(100% - 16px); padding: 10px 0 14px; }
+      .topbar { align-items: flex-start; padding: 14px; border-radius: 16px; }
+      .brand-mark { font-size: 1.8rem; }
+      .subtitle { font-size: .72rem; }
+      .score-board { display: block; min-width: 58px; }
+      .score { font-size: 1.45rem; }
+      .progress { width: 58px; height: 7px; }
+      .board { margin-top: 14px; padding: 13px 9px 18px; border-radius: 19px; }
+      .board-heading { display: block; margin: 0 4px 7px; }
+      .board-heading p { margin-top: 3px; font-size: .72rem; }
+      .treasure-grid { gap: 5px; }
+      .treasure { border-radius: 10px; }
+      .treasure-number { top: 4px; left: 4px; width: 19px; height: 19px; font-size: .6rem; }
+      .modal { padding: 22px 17px; border-radius: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🧭</div>
+        <div>
+          <h1>보물상자 퀴즈</h1>
+          <p class="subtitle">문제를 풀고 숨겨진 보물을 찾아보세요!</p>
+        </div>
+      </div>
+      <div class="score-board" aria-label="현재 점수와 진행 상황">
+        <div><span class="score-label">획득 점수</span><span class="score"><span id="score">0</span>점</span></div>
+        <div><span class="score-label"><span id="opened-count">0</span> / 16 상자</span><div class="progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div><button class="reset-button" id="reset-button" type="button">기록 초기화</button></div>
+      </div>
+    </header>
+
+    <section class="board" aria-labelledby="board-title">
+      <div class="board-heading">
+        <h2 id="board-title">숲속 보물지도</h2>
+        <p>상자를 눌러 문제를 확인하세요</p>
+      </div>
+      <div class="treasure-grid" id="treasure-grid"></div>
+      <div class="complete" id="complete-message" role="status">🎉 모든 보물을 찾았습니다! 정말 훌륭해요!</div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="quiz-modal" role="dialog" aria-modal="true" aria-labelledby="question-text">
+    <div class="modal">
+      <div class="modal-top"><span class="modal-tag" id="modal-tag">보물상자 1번</span><button class="close-button" id="close-button" type="button" aria-label="문제 닫기">&times;</button></div>
+      <p class="question" id="question-text"></p>
+      <div class="answers" id="answers"></div>
+      <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <audio id="forest-bgm" src="audio/forest-bgm.wav" preload="auto" loop></audio>
+  <audio id="discover-sound" src="audio/discover.wav" preload="auto"></audio>
+  <audio id="open-sound" src="audio/open.wav" preload="auto"></audio>
+  <audio id="win-sound" src="audio/win.wav" preload="auto"></audio>
+
+  <script>
+    const questions = [
+      { question: '물이 얼음으로 변하는 온도는 몇 도일까요?', answers: ['0도', '10도', '50도', '100도'], correct: 0 },
+      { question: '대한민국의 수도는 어디일까요?', answers: ['부산', '서울', '인천', '대전'], correct: 1 },
+      { question: '한글을 만든 왕은 누구일까요?', answers: ['세종대왕', '광개토대왕', '정조', '이순신'], correct: 0 },
+      { question: '지구가 태양을 한 바퀴 도는 데 걸리는 시간은?', answers: ['하루', '한 달', '1년', '10년'], correct: 2 },
+      { question: '3 × 4의 값은 얼마일까요?', answers: ['7', '10', '12', '14'], correct: 2 },
+      { question: '우리 몸에서 피를 온몸으로 보내는 기관은?', answers: ['위', '심장', '폐', '간'], correct: 1 },
+      { question: '무지개는 보통 몇 가지 색으로 이루어져 있을까요?', answers: ['3가지', '5가지', '7가지', '10가지'], correct: 2 },
+      { question: '봄, 여름, 가을 다음에 오는 계절은?', answers: ['겨울', '장마', '새해', '가을'], correct: 0 },
+      { question: '10에서 3을 빼면 얼마일까요?', answers: ['5', '6', '7', '8'], correct: 2 },
+      { question: '식물이 햇빛을 이용해 양분을 만드는 작용은?', answers: ['소화', '광합성', '호흡', '증발'], correct: 1 },
+      { question: '우리나라 국기의 이름은 무엇일까요?', answers: ['태극기', '무궁화기', '한빛기', '청룡기'], correct: 0 },
+      { question: '영어 알파벳의 첫 글자는 무엇일까요?', answers: ['A', 'B', 'C', 'D'], correct: 0 },
+      { question: '물고기는 무엇으로 숨을 쉴까요?', answers: ['허파', '피부', '아가미', '코'], correct: 2 },
+      { question: '1시간은 몇 분일까요?', answers: ['30분', '45분', '60분', '100분'], correct: 2 },
+      { question: '달은 지구의 무엇일까요?', answers: ['위성', '별', '행성', '혜성'], correct: 0 },
+      { question: '다음 중 탈것이 아닌 것은 무엇일까요?', answers: ['기차', '자전거', '비행기', '나무'], correct: 3 }
+    ];
+
+    const opened = new Set();
+    const storageKey = 'treasure-quiz-progress-v1';
+    let activeChest = null;
+    const forestBgm = document.getElementById('forest-bgm');
+    const discoverSound = document.getElementById('discover-sound');
+    const openSound = document.getElementById('open-sound');
+    const winSound = document.getElementById('win-sound');
+    forestBgm.volume = 0.5;
+    const grid = document.getElementById('treasure-grid');
+    const modal = document.getElementById('quiz-modal');
+    const feedback = document.getElementById('feedback');
+
+    questions.forEach((_, index) => {
+      const button = document.createElement('button');
+      button.className = 'treasure';
+      button.type = 'button';
+      button.dataset.index = index;
+      button.setAttribute('aria-label', `${index + 1}번 보물상자 열기`);
+      button.innerHTML = `<span class="treasure-number">${index + 1}</span><img src="images/chest-closed.png" alt="닫힌 보물상자">`;
+      button.addEventListener('click', () => openQuiz(index));
+      grid.appendChild(button);
+    });
+
+    restoreProgress();
+
+    function openQuiz(index) {
+      if (opened.has(index)) return;
+      startBackgroundMusic();
+      playSound(discoverSound);
+      activeChest = index;
+      const item = questions[index];
+      document.getElementById('modal-tag').textContent = `보물상자 ${index + 1}번`;
+      document.getElementById('question-text').textContent = item.question;
+      feedback.textContent = '';
+      feedback.className = 'feedback';
+      const answers = document.getElementById('answers');
+      answers.innerHTML = '';
+      item.answers.forEach((answer, answerIndex) => {
+        const answerButton = document.createElement('button');
+        answerButton.className = 'answer';
+        answerButton.type = 'button';
+        answerButton.textContent = `${answerIndex + 1}. ${answer}`;
+        answerButton.addEventListener('click', () => checkAnswer(answerIndex));
+        answers.appendChild(answerButton);
+      });
+      modal.classList.add('visible');
+      answers.querySelector('button').focus();
+    }
+
+    function checkAnswer(answerIndex) {
+      const item = questions[activeChest];
+      if (answerIndex !== item.correct) {
+        feedback.textContent = '아쉬워요. 다시 생각해 보세요!';
+        feedback.className = 'feedback wrong';
+        return;
+      }
+      opened.add(activeChest);
+      setChestOpened(activeChest);
+      const chest = grid.querySelector(`[data-index="${activeChest}"]`);
+      chest.classList.add('opened');
+      playSound(openSound);
+      feedback.textContent = '정답이에요! 보물을 획득했습니다!';
+      feedback.className = 'feedback correct';
+      updateScore();
+      if (opened.size === questions.length) playSound(winSound);
+      setTimeout(closeQuiz, 900);
+    }
+
+    function startBackgroundMusic() {
+      if (!forestBgm.paused) return;
+      forestBgm.play().catch(() => {});
+    }
+
+    function playSound(sound) {
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+    }
+
+    function setChestOpened(index) {
+      const chest = grid.querySelector(`[data-index="${index}"]`);
+      chest.classList.add('opened');
+      chest.disabled = true;
+      chest.setAttribute('aria-label', `${index + 1}번 보물상자 열림`);
+      chest.querySelector('img').src = 'images/chest-open.png';
+      chest.querySelector('img').alt = '열린 보물상자';
+    }
+
+    function restoreProgress() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        const savedIndexes = Array.isArray(saved.opened) ? saved.opened : [];
+        savedIndexes.filter(index => Number.isInteger(index) && index >= 0 && index < questions.length).forEach(index => {
+          opened.add(index);
+          setChestOpened(index);
+        });
+      } catch (error) {
+        localStorage.removeItem(storageKey);
+      }
+      updateScore();
+    }
+
+    function saveProgress() {
+      localStorage.setItem(storageKey, JSON.stringify({ opened: [...opened], score: opened.size * 10 }));
+    }
+
+    function updateScore() {
+      const count = opened.size;
+      document.getElementById('score').textContent = count * 10;
+      document.getElementById('opened-count').textContent = count;
+      document.getElementById('progress-bar').style.width = `${count / questions.length * 100}%`;
+      if (count === questions.length) document.getElementById('complete-message').classList.add('visible');
+      saveProgress();
+    }
+
+    document.getElementById('reset-button').addEventListener('click', () => {
+      if (!window.confirm('모든 진행 기록을 지우고 처음부터 시작할까요?')) return;
+      opened.clear();
+      localStorage.removeItem(storageKey);
+      grid.querySelectorAll('.treasure').forEach((chest, index) => {
+        chest.classList.remove('opened');
+        chest.disabled = false;
+        chest.setAttribute('aria-label', `${index + 1}번 보물상자 열기`);
+        chest.querySelector('img').src = 'images/chest-closed.png';
+        chest.querySelector('img').alt = '닫힌 보물상자';
+      });
+      document.getElementById('complete-message').classList.remove('visible');
+      updateScore();
+    });
+
+    function closeQuiz() {
+      modal.classList.remove('visible');
+      activeChest = null;
+    }
+
+    document.getElementById('close-button').addEventListener('click', closeQuiz);
+    modal.addEventListener('click', (event) => { if (event.target === modal) closeQuiz(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && modal.classList.contains('visible')) closeQuiz(); });
+  </script>
+</body>
+</html>
