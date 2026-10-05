@@ -64,8 +64,9 @@
     .score { color: var(--gold-dark); font-family: 'Jua', sans-serif; font-size: 1.85rem; }
     .progress { width: 100px; height: 10px; overflow: hidden; border-radius: 99px; background: #d2dfbc; }
     .progress-bar { width: 0%; height: 100%; border-radius: inherit; background: var(--gold); transition: width .4s ease; }
-    .reset-button { margin-top: 5px; padding: 4px 8px; border: 1px solid #c7ad78; border-radius: 7px; color: #765c35; background: rgba(255, 252, 234, .7); font: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; }
-    .reset-button:hover { color: #fff9df; background: #8b632d; }
+    .score-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+    .reset-button, .sound-button { padding: 4px 8px; border: 1px solid #c7ad78; border-radius: 7px; color: #765c35; background: rgba(255, 252, 234, .7); font: inherit; font-size: .7rem; font-weight: 700; cursor: pointer; }
+    .reset-button:hover, .sound-button:hover { color: #fff9df; background: #8b632d; }
 
     .board {
       min-height: 0;
@@ -153,7 +154,7 @@
       </div>
       <div class="score-board" aria-label="현재 점수와 진행 상황">
         <div><span class="score-label">획득 점수</span><span class="score"><span id="score">0</span>점</span></div>
-        <div><span class="score-label"><span id="opened-count">0</span> / 16 상자</span><div class="progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div><button class="reset-button" id="reset-button" type="button">기록 초기화</button></div>
+        <div><span class="score-label"><span id="opened-count">0</span> / 16 상자</span><div class="progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div><div class="score-actions"><button class="reset-button" id="reset-button" type="button">기록 초기화</button><button class="sound-button" id="sound-button" type="button" aria-pressed="true">소리 끄기</button></div></div>
       </div>
     </header>
 
@@ -208,6 +209,9 @@
     const discoverSound = document.getElementById('discover-sound');
     const openSound = document.getElementById('open-sound');
     const winSound = document.getElementById('win-sound');
+    const soundButton = document.getElementById('sound-button');
+    const soundEffects = [discoverSound, openSound, winSound];
+    let soundEnabled = true;
     forestBgm.volume = 0.5;
     const grid = document.getElementById('treasure-grid');
     const modal = document.getElementById('quiz-modal');
@@ -270,14 +274,33 @@
     }
 
     function startBackgroundMusic() {
+      if (!soundEnabled) return;
       if (!forestBgm.paused) return;
       forestBgm.play().catch(() => {});
     }
 
     function playSound(sound) {
+      if (!soundEnabled) return;
       sound.currentTime = 0;
       sound.play().catch(() => {});
     }
+
+    function updateSoundButton() {
+      soundButton.textContent = soundEnabled ? '소리 끄기' : '소리 켜기';
+      soundButton.setAttribute('aria-pressed', String(soundEnabled));
+    }
+
+    soundButton.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      if (!soundEnabled) {
+        forestBgm.pause();
+        soundEffects.forEach(sound => {
+          sound.pause();
+          sound.currentTime = 0;
+        });
+      }
+      updateSoundButton();
+    });
 
     function setChestOpened(index) {
       const chest = grid.querySelector(`[data-index="${index}"]`);
